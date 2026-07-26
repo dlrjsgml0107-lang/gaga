@@ -142,15 +142,67 @@ function fullscreenElement() {
   return document.fullscreenElement || document.webkitFullscreenElement || null;
 }
 
+function isMobileDevice() {
+  return window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
+}
+
+function isPortrait() {
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+
+function setPlayerMode(active) {
+  document.body.classList.toggle('mobile-player-mode', active && isMobileDevice());
+  document.body.classList.toggle(
+    'force-landscape-player',
+    active && isMobileDevice() && isPortrait() && !fullscreenElement()
+  );
+  syncFullscreenButton();
+}
+
+async function lockLandscape() {
+  if (!isMobileDevice() || !screen.orientation?.lock) return false;
+  try {
+    await screen.orientation.lock('landscape');
+    return true;
+  } catch (error) {
+    console.info('가로 방향 잠금을 사용할 수 없어 대체 플레이어를 사용해.', error);
+    return false;
+  }
+}
+
+function unlockOrientation() {
+  try {
+    screen.orientation?.unlock?.();
+  } catch {}
+}
+
 function syncFullscreenButton() {
   const active = Boolean(fullscreenElement()) || pseudoFullscreen;
-  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '전체 화면';
+  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '가로 전체 화면';
   el.fullscreenBtn.setAttribute('aria-pressed', String(active));
+  setPlayerMode(active);
 }
 
 async function exitFullscreen() {
   if (document.exitFullscreen) return document.exitFullscreen();
   if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+}
+
+function leavePlayerMode() {
+  pseudoFullscreen = false;
+  document.body.classList.remove('pseudo-fullscreen', 'mobile-player-mode', 'force-landscape-player');
+  unlockOrientation();
+  syncFullscreenButton();
+}
+
+async function enterFallbackPlayerMode() {
+  pseudoFullscreen = true;
+  document.body.classList.add('pseudo-fullscreen');
+  setPlayerMode(true);
+  await lockLandscape();
+  // iPhone Safari처럼 방향 잠금이 불가능하면 화면 자체를 가로로 회전한다.
+  document.body.classList.toggle('force-landscape-player', isMobileDevice() && isPortrait());
+  showCinemaUi(5000);
 }
 
 async function toggleFullscreen() {
@@ -163,40 +215,58 @@ async function toggleFullscreen() {
     }
 
     if (pseudoFullscreen) {
-      pseudoFullscreen = false;
-      document.body.classList.remove('pseudo-fullscreen');
-      syncFullscreenButton();
+      leavePlayerMode();
       return;
     }
 
     if (target.requestFullscreen) {
       await target.requestFullscreen({ navigationUI: 'hide' });
+      setPlayerMode(true);
+      await lockLandscape();
       return;
     }
 
     if (target.webkitRequestFullscreen) {
       target.webkitRequestFullscreen();
+      setPlayerMode(true);
+      await lockLandscape();
       return;
     }
 
-    // iPhone Safari는 일반 요소 전체화면을 지원하지 않는 경우가 많아
-    // 영상과 채팅 UI를 화면에 고정하는 대체 전체화면을 사용한다.
-    pseudoFullscreen = true;
-    document.body.classList.add('pseudo-fullscreen');
-    syncFullscreenButton();
-    showToast('브라우저 제한으로 화면 고정 모드를 사용해');
+    await enterFallbackPlayerMode();
   } catch (error) {
-    console.error(error);
-    pseudoFullscreen = !pseudoFullscreen;
-    document.body.classList.toggle('pseudo-fullscreen', pseudoFullscreen);
-    syncFullscreenButton();
-    showToast('화면 고정 모드로 전환했어');
+    console.error('전체 화면 전환 실패:', error);
+    await enterFallbackPlayerMode();
   }
 }
 
 el.fullscreenBtn.addEventListener('click', toggleFullscreen);
-document.addEventListener('fullscreenchange', syncFullscreenButton);
-document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+document.addEventListener('fullscreenchange', () => {
+  const active = Boolean(fullscreenElement());
+  if (active) {
+    setPlayerMode(true);
+    lockLandscape();
+  } else if (!pseudoFullscreen) {
+    leavePlayerMode();
+  }
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  const active = Boolean(fullscreenElement());
+  if (active) {
+    setPlayerMode(true);
+    lockLandscape();
+  } else if (!pseudoFullscreen) {
+    leavePlayerMode();
+  }
+});
+window.addEventListener('orientationchange', () => {
+  if (pseudoFullscreen || fullscreenElement()) {
+    setTimeout(() => setPlayerMode(true), 120);
+  }
+});
+window.addEventListener('resize', () => {
+  if (pseudoFullscreen || fullscreenElement()) setPlayerMode(true);
+});
 el.chatToggleBtn.addEventListener('click', () => setChatHidden(!chatHidden));
 el.stage.addEventListener('pointermove', () => showCinemaUi());
 el.stage.addEventListener('pointerdown', (event) => {

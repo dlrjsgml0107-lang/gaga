@@ -8,3 +8,68 @@ body.pseudo-fullscreen{overflow:hidden;position:fixed;inset:0;width:100%;height:
 body.pseudo-fullscreen .room{position:fixed;inset:0;z-index:9999;width:100%;height:100%;background:#000}
 body.pseudo-fullscreen .stage{width:100vw;height:100dvh;min-height:100dvh}
 :fullscreen .stage,:-webkit-full-screen .stage{width:100vw;height:100vh}
+
+/* Mobile landscape cinema player: video, translucent chat, and controls stay together. */
+body.mobile-player-mode{overflow:hidden;background:#000}
+body.mobile-player-mode .room{position:fixed;inset:0;z-index:9999;width:100%;height:100%;background:#000}
+body.mobile-player-mode .stage{width:100vw;height:100dvh;min-height:0;background:#000}
+body.mobile-player-mode .stage video{object-fit:contain}
+
+@media (orientation:landscape) and (max-height:700px), (max-width:900px) and (pointer:coarse){
+  body.mobile-player-mode .topbar{
+    padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 30px max(12px,env(safe-area-inset-left));
+    gap:8px;
+  }
+  body.mobile-player-mode .brand.small{font-size:16px}
+  body.mobile-player-mode .room-info{display:none}
+  body.mobile-player-mode .header-actions{gap:6px}
+  body.mobile-player-mode .people{font-size:11px;padding:6px 9px}
+  body.mobile-player-mode .icon-button,
+  body.mobile-player-mode .icon-text{height:34px;min-width:36px;padding:0 9px;font-size:12px}
+  body.mobile-player-mode .chat-overlay{
+    left:max(14px,env(safe-area-inset-left));
+    right:auto;
+    bottom:max(12px,env(safe-area-inset-bottom));
+    width:min(46vw,500px);
+    gap:6px;
+  }
+  body.mobile-player-mode .members{display:none}
+  body.mobile-player-mode .messages{max-height:34vh;gap:5px}
+  body.mobile-player-mode .message,
+  body.mobile-player-mode .system{padding:6px 9px;font-size:12px;background:rgba(8,8,8,.48)}
+  body.mobile-player-mode .message b{font-size:10px}
+  body.mobile-player-mode .chat-overlay form{grid-template-columns:1fr 40px;gap:6px;max-width:460px}
+  body.mobile-player-mode .chat-overlay input{height:38px;padding:8px 11px;font-size:13px}
+  body.mobile-player-mode .send{height:38px}
+  body.mobile-player-mode .player-actions{
+    top:auto;
+    right:max(14px,env(safe-area-inset-right));
+    bottom:max(12px,env(safe-area-inset-bottom));
+    align-items:flex-end;
+  }
+  body.mobile-player-mode .player-actions button{height:38px;padding:7px 11px;font-size:12px}
+  body.mobile-player-mode .bottom-gradient{height:45%}
+}
+
+/* iPhone Safari fallback: rotate the complete player, including chat, while the phone is portrait. */
+body.force-landscape-player{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:#000}
+body.force-landscape-player .room{position:fixed;inset:0;width:100vw;height:100dvh;overflow:hidden;background:#000}
+body.force-landscape-player .stage{
+  position:fixed;
+  top:50%;
+  left:50%;
+  width:100dvh;
+  height:100vw;
+  min-height:0;
+  transform:translate(-50%,-50%) rotate(90deg);
+  transform-origin:center;
+}
+body.force-landscape-player #toast{
+  transform:translate(-50%,20px) rotate(0deg);
+}
+body.force-landscape-player #toast.show{transform:translate(-50%,0) rotate(0deg)}
+
+.stage:fullscreen,
+.stage:-webkit-full-screen{width:100vw;height:100vh;min-height:0;background:#000}
+.stage:fullscreen video,
+.stage:-webkit-full-screen video{object-fit:contain}
