@@ -415,7 +415,8 @@ body > #chatOverlay.persistent-chat form input {
   border-radius: 999px;
   background: rgba(8,8,8,.42);
   border-color: rgba(255,255,255,.14);
-  font-size: 13px;
+  font-size: 16px; /* iOS Safari: prevent focus auto-zoom */
+  line-height: 1.2;
   transition: height .18s ease, background .18s ease, border-radius .18s ease;
 }
 body > #chatOverlay.persistent-chat.composer-open form,
@@ -437,4 +438,12 @@ body > #chatOverlay.persistent-chat:not(.composer-open) {
   body > #chatOverlay.persistent-chat form { width:min(350px,52vw); }
   body > #chatOverlay.persistent-chat.composer-open form,
   body.keyboard-open > #chatOverlay.persistent-chat form { width:min(520px,82vw); }
+}
+
+
+/* v18 — prevent iOS Safari from zooming when the chat field receives focus. */
+@supports (-webkit-touch-callout: none) {
+  body > #chatOverlay.persistent-chat form input {
+    font-size: 16px !important;
+  }
 }
