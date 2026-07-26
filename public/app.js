@@ -146,16 +146,8 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
 }
 
-function isPortrait() {
-  return window.matchMedia('(orientation: portrait)').matches;
-}
-
 function setPlayerMode(active) {
   document.body.classList.toggle('mobile-player-mode', active && isMobileDevice());
-  document.body.classList.toggle(
-    'force-landscape-player',
-    active && isMobileDevice() && isPortrait() && !fullscreenElement()
-  );
   syncFullscreenButton();
 }
 
@@ -178,7 +170,7 @@ function unlockOrientation() {
 
 function syncFullscreenButton() {
   const active = Boolean(fullscreenElement()) || pseudoFullscreen;
-  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '가로 전체 화면';
+  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '화면 맞춤';
   el.fullscreenBtn.setAttribute('aria-pressed', String(active));
   setPlayerMode(active);
 }
@@ -190,7 +182,7 @@ async function exitFullscreen() {
 
 function leavePlayerMode() {
   pseudoFullscreen = false;
-  document.body.classList.remove('pseudo-fullscreen', 'mobile-player-mode', 'force-landscape-player');
+  document.body.classList.remove('pseudo-fullscreen', 'mobile-player-mode');
   unlockOrientation();
   syncFullscreenButton();
 }
@@ -200,8 +192,6 @@ async function enterFallbackPlayerMode() {
   document.body.classList.add('pseudo-fullscreen');
   setPlayerMode(true);
   await lockLandscape();
-  // iPhone Safari처럼 방향 잠금이 불가능하면 화면 자체를 가로로 회전한다.
-  document.body.classList.toggle('force-landscape-player', isMobileDevice() && isPortrait());
   showCinemaUi(5000);
 }
 
