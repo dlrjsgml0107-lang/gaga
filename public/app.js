@@ -213,44 +213,85 @@ el.chatForm.addEventListener('submit', (event) => {
   showCinemaUi(5200);
 });
 
-el.shareBtn.addEventListener('click', async () => {
-  try {
-    localStream = await navigator.mediaDevices.getDisplayMedia({
+async function requestDisplayStream() {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    throw new Error('이 브라우저는 화면 공유를 지원하지 않아');
+  }
+
+  const attempts = [
+    {
       video: {
-        frameRate: { ideal: 60, min: 30, max: 60 },
-        width: { ideal: 1920, max: 2560 },
-        height: { ideal: 1080, max: 1440 },
+        frameRate: { ideal: 60, max: 60 },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
       },
       audio: true,
-    });
+    },
+    { video: true, audio: true },
+    { video: true, audio: false },
+  ];
+
+  let lastError;
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getDisplayMedia(constraints);
+    } catch (error) {
+      lastError = error;
+      console.warn('화면 공유 시도 실패:', error.name, error.message, constraints);
+      if (error.name === 'NotAllowedError' || error.name === 'AbortError') throw error;
+    }
+  }
+  throw lastError || new Error('화면 공유 요청 실패');
+}
+
+el.shareBtn.addEventListener('click', async () => {
+  el.shareBtn.disabled = true;
+  el.status.textContent = '화면 공유 권한 요청 중';
+
+  try {
+    localStream = await requestDisplayStream();
 
     const captureTrack = localStream.getVideoTracks()[0];
-    if (captureTrack) {
-      captureTrack.contentHint = 'motion';
-      await captureTrack.applyConstraints({
-        frameRate: { ideal: 60, min: 30, max: 60 },
-        width: { ideal: 1920, max: 2560 },
-        height: { ideal: 1080, max: 1440 },
-      }).catch(() => {});
+    if (!captureTrack) throw new Error('공유할 영상 트랙을 가져오지 못했어');
+
+    try { captureTrack.contentHint = 'motion'; } catch (_) {}
+    try {
+      await captureTrack.applyConstraints({ frameRate: { ideal: 60, max: 60 } });
+    } catch (constraintError) {
+      console.warn('프레임 설정을 적용하지 못했지만 공유는 계속해:', constraintError);
     }
+
     el.video.srcObject = localStream;
     el.video.muted = true;
-    await el.video.play().catch(() => {});
+    await el.video.play().catch((playError) => console.warn('로컬 미리보기 재생 실패:', playError));
     el.emptyState.classList.add('hidden');
     el.shareBtn.classList.add('hidden');
     el.stopBtn.classList.remove('hidden');
     el.status.textContent = '송출 중 · 친구 연결 대기';
     socket.emit('host-sharing', { sharing: true });
 
-    const videoTrack = localStream.getVideoTracks()[0];
-    if (videoTrack) videoTrack.addEventListener('ended', stopShare, { once: true });
+    captureTrack.addEventListener('ended', stopShare, { once: true });
 
     for (const viewerId of peers.keys()) await callViewer(viewerId);
     if (localStream.getAudioTracks().length === 0) {
-      showToast('소리가 안 잡혔어. 크롬 탭과 탭 오디오 공유를 선택해줘');
+      showToast('영상은 공유됐지만 소리는 없어. 크롬 탭 공유와 탭 오디오를 선택해줘');
     }
   } catch (error) {
-    if (error.name !== 'NotAllowedError') showToast('화면 공유를 시작하지 못했어');
+    console.error('화면 공유 시작 오류:', error);
+    el.status.textContent = '화면 공유 실패';
+
+    const messages = {
+      NotAllowedError: '화면 공유가 취소됐거나 권한이 거부됐어',
+      AbortError: '화면 선택이 취소됐어',
+      NotFoundError: '공유할 화면이나 창을 찾지 못했어',
+      NotReadableError: 'macOS 화면 기록 권한을 확인해줘',
+      InvalidStateError: '화면 공유 버튼을 다시 직접 눌러줘',
+      OverconstrainedError: '요청한 화질 설정을 지원하지 않아',
+      TypeError: '브라우저가 화면 공유 설정을 지원하지 않아',
+    };
+    showToast(`${messages[error.name] || error.message || '화면 공유를 시작하지 못했어'} (${error.name || 'Error'})`);
+  } finally {
+    el.shareBtn.disabled = false;
   }
 });
 
