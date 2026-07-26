@@ -329,3 +329,30 @@ body.keyboard-open > #chatOverlay.persistent-chat{
   left:max(8px,env(safe-area-inset-left))!important;right:max(8px,env(safe-area-inset-right))!important;
   width:auto!important;bottom:calc(var(--keyboard-inset) + max(6px,env(safe-area-inset-bottom)))!important;
 }}
+
+/* v14 — restore reliable touch/click handling for player controls. */
+.cinema-ui.visible,
+.cinema-ui:focus-within {
+  pointer-events: auto !important;
+}
+.cinema-ui .topbar,
+.cinema-ui .player-actions,
+.cinema-ui .topbar button,
+.cinema-ui .player-actions button {
+  pointer-events: auto !important;
+}
+.player-actions {
+  z-index: 20;
+  touch-action: manipulation;
+}
+.player-actions button {
+  position: relative;
+  z-index: 21;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Invisible controls must not retain a hidden click layer. */
+.cinema-ui:not(.visible):not(:focus-within) .topbar,
+.cinema-ui:not(.visible):not(:focus-within) .player-actions {
+  pointer-events: none !important;
+}
