@@ -471,14 +471,26 @@ el.chatInput.addEventListener('blur', () => {
   }, 120);
   showCinemaUi();
 });
-el.chatForm.addEventListener('submit', (event) => {
-  event.preventDefault();
+function submitChatMessage() {
   const text = el.chatInput.value.trim();
   if (!text) return;
   socket.emit('chat-message', { text });
   el.chatInput.value = '';
   setComposerOpen(false);
   showCinemaUi(3200);
+}
+
+// Desktop Enter and the mobile keyboard's Send/Enter key both submit.
+// isComposing prevents Korean IME confirmation Enter from sending too early.
+el.chatInput.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  submitChatMessage();
+});
+
+el.chatForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  submitChatMessage();
 });
 
 async function requestDisplayStream() {
