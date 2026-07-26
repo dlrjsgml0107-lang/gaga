@@ -159,12 +159,6 @@ function showCinemaUi(duration = 3200) {
 function setComposerOpen(open, focusInput = false) {
   composerOpen = Boolean(open);
   el.chatOverlay?.classList.toggle('composer-open', composerOpen);
-  el.chatToggleBtn?.classList.toggle('active', composerOpen);
-  if (el.chatToggleBtn) {
-    el.chatToggleBtn.textContent = composerOpen ? '✕' : '💬';
-    el.chatToggleBtn.title = composerOpen ? '입력창 닫기' : '채팅 입력';
-    el.chatToggleBtn.setAttribute('aria-label', composerOpen ? '입력창 닫기' : '채팅 입력');
-  }
   if (composerOpen) {
     showCinemaUi(600000);
     if (focusInput) setTimeout(() => el.chatInput?.focus({ preventScroll: true }), 30);
@@ -445,12 +439,19 @@ window.addEventListener('orientationchange', () => {
 window.addEventListener('resize', () => {
   if (pseudoFullscreen || fullscreenElement()) setPlayerMode(true);
 });
-el.chatToggleBtn.addEventListener('click', () => setComposerOpen(!composerOpen, !composerOpen));
+el.chatToggleBtn?.addEventListener('click', () => el.chatInput?.focus({ preventScroll: true }));
 el.stage.addEventListener('pointermove', () => showCinemaUi());
 el.stage.addEventListener('pointerdown', (event) => {
-  if (!event.target.closest('button,input,form')) showCinemaUi();
+  if (event.target.closest('button,input,form')) return;
+  if (document.activeElement === el.chatInput || composerOpen) {
+    setComposerOpen(false);
+  } else {
+    showCinemaUi();
+  }
 });
 el.chatInput.addEventListener('focus', () => {
+  composerOpen = true;
+  el.chatOverlay?.classList.add('composer-open');
   showCinemaUi(600000);
   requestAnimationFrame(() => {
     updateViewportSize();

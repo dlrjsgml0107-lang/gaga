@@ -395,3 +395,67 @@ body > #chatOverlay.persistent-chat:not(.composer-open) .messages {
     max-height: 28vh;
   }
 }
+
+
+/* v16 — always-available slim composer; expands only while focused. */
+body > #chatOverlay.persistent-chat form {
+  display: grid !important;
+  grid-template-columns: 1fr 0fr;
+  gap: 0;
+  width: min(360px, 72vw);
+  max-width: 100%;
+  opacity: .68;
+  transform: none;
+  pointer-events: auto;
+  transition: width .18s ease, opacity .18s ease, grid-template-columns .18s ease, gap .18s ease;
+}
+body > #chatOverlay.persistent-chat form input {
+  height: 36px;
+  min-width: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(8,8,8,.42);
+  border-color: rgba(255,255,255,.14);
+  font-size: 13px;
+  transition: height .18s ease, background .18s ease, border-radius .18s ease;
+}
+body > #chatOverlay.persistent-chat form .send {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  border-width: 0;
+  pointer-events: none;
+  transition: width .18s ease, opacity .18s ease, padding .18s ease;
+}
+body > #chatOverlay.persistent-chat.composer-open form,
+body.keyboard-open > #chatOverlay.persistent-chat form {
+  grid-template-columns: 1fr 44px;
+  gap: 8px;
+  width: min(520px, calc(100vw - 24px));
+  opacity: 1;
+}
+body > #chatOverlay.persistent-chat.composer-open form input,
+body.keyboard-open > #chatOverlay.persistent-chat form input {
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(12,12,12,.82);
+  border-color: rgba(255,255,255,.28);
+}
+body > #chatOverlay.persistent-chat.composer-open form .send,
+body.keyboard-open > #chatOverlay.persistent-chat form .send {
+  width: 44px;
+  padding: 0;
+  opacity: 1;
+  border-width: 1px;
+  pointer-events: auto;
+}
+body > #chatOverlay.persistent-chat:not(.composer-open) {
+  bottom: max(8px, env(safe-area-inset-bottom)) !important;
+}
+@media(max-height:560px) and (orientation:landscape) {
+  body > #chatOverlay.persistent-chat form { width:min(310px,46vw); }
+  body > #chatOverlay.persistent-chat.composer-open form,
+  body.keyboard-open > #chatOverlay.persistent-chat form { width:min(470px,76vw); }
+}
