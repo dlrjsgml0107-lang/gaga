@@ -1,0 +1,337 @@
+'use strict';
+
+const socket = io();
+const byId = (id) => document.getElementById(id);
+const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast'];
+const el = Object.fromEntries(ids.map((id) => [id, byId(id)]));
+
+let role = 'viewer';
+let roomId = '';
+let nickname = '';
+let localStream = null;
+let toastTimer = null;
+let uiTimer = null;
+let chatHidden = false;
+const peers = new Map();
+const pendingCandidates = new Map();
+
+const iceServers = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
+
+function showToast(text) {
+  clearTimeout(toastTimer);
+  el.toast.textContent = text;
+  el.toast.classList.add('show');
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
+}
+
+
+function showCinemaUi(duration = 3200) {
+  if (!el.cinemaUi) return;
+  el.cinemaUi.classList.add('visible');
+  clearTimeout(uiTimer);
+  if (document.activeElement === el.chatInput) return;
+  uiTimer = setTimeout(() => {
+    if (document.activeElement !== el.chatInput) el.cinemaUi.classList.remove('visible');
+  }, duration);
+}
+
+function setChatHidden(hidden) {
+  chatHidden = hidden;
+  el.chatOverlay.classList.toggle('chat-hidden', hidden);
+  el.chatToggleBtn.textContent = hidden ? '👁' : '💬';
+  el.chatToggleBtn.title = hidden ? '채팅 보이기' : '채팅 숨기기';
+  el.chatToggleBtn.setAttribute('aria-label', hidden ? '채팅 보이기' : '채팅 숨기기');
+  showCinemaUi();
+}
+
+function randomRoom() {
+  const values = crypto.getRandomValues(new Uint32Array(2));
+  return `${values[0].toString(36)}${values[1].toString(36)}`.slice(0, 10);
+}
+
+function roomFromUrl() {
+  return new URLSearchParams(location.search).get('room') || '';
+}
+
+function addMessage(name, text, system = false) {
+  const item = document.createElement('div');
+  item.className = system ? 'system' : 'message';
+  if (system) {
+    item.textContent = text;
+  } else {
+    const author = document.createElement('b');
+    const body = document.createElement('span');
+    author.textContent = name;
+    body.textContent = text;
+    item.append(author, body);
+  }
+  el.messages.appendChild(item);
+  el.messages.scrollTop = el.messages.scrollHeight;
+  if (!system) {
+    setTimeout(() => item.classList.add('fading'), 8000);
+    setTimeout(() => item.remove(), 9200);
+  }
+  showCinemaUi(5200);
+}
+
+function closePeer(id) {
+  const pc = peers.get(id);
+  if (pc) pc.close();
+  peers.delete(id);
+  pendingCandidates.delete(id);
+}
+
+function closeAllPeers() {
+  for (const id of [...peers.keys()]) closePeer(id);
+}
+
+function updateViewerPlaceholder(title, desc) {
+  el.emptyTitle.textContent = title;
+  el.emptyDesc.textContent = desc;
+  el.emptyState.classList.remove('hidden');
+}
+
+function enterRoom(asRole, rawId) {
+  nickname = el.nickname.value.trim() || '익명';
+  roomId = rawId.trim().toLowerCase();
+  role = asRole;
+  if (!roomId) return showToast('방 코드를 입력해줘');
+
+  el.createBtn.disabled = true;
+  el.joinBtn.disabled = true;
+  socket.emit('join-room', { roomId, nickname, role }, (res) => {
+    el.createBtn.disabled = false;
+    el.joinBtn.disabled = false;
+    if (!res?.ok) return showToast(res?.message || '방에 들어가지 못했어');
+
+    role = res.role;
+    el.lobby.classList.add('hidden');
+    el.room.classList.remove('hidden');
+    el.roleText.textContent = role === 'host' ? '방장' : '시청자';
+    el.shareBtn.classList.toggle('hidden', role !== 'host');
+    history.replaceState({}, '', `/?room=${encodeURIComponent(roomId)}`);
+
+    if (role === 'host') {
+      el.status.textContent = '화면 공유 준비';
+      el.emptyTitle.textContent = '화면 공유를 시작해줘';
+      el.emptyDesc.textContent = '영상이 재생되는 크롬 탭을 고르고 ‘탭 오디오 공유’를 켜줘.';
+    } else {
+      el.status.textContent = '방장 기다리는 중';
+      updateViewerPlaceholder('방장 송출을 기다리는 중', '화면 공유가 시작되면 이곳에 자동으로 재생돼.');
+    }
+    addMessage('', `${nickname}님으로 입장했어.`, true);
+  });
+}
+
+el.createBtn.addEventListener('click', () => enterRoom('host', randomRoom()));
+el.joinBtn.addEventListener('click', () => enterRoom('viewer', el.roomCode.value));
+el.copyBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(location.href);
+    showToast('초대 링크 복사 완료');
+  } catch {
+    showToast('주소창의 링크를 복사해줘');
+  }
+});
+el.fullscreenBtn.addEventListener('click', () => {
+  const target = el.stage;
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  else target.requestFullscreen?.();
+});
+el.chatToggleBtn.addEventListener('click', () => setChatHidden(!chatHidden));
+el.stage.addEventListener('pointermove', () => showCinemaUi());
+el.stage.addEventListener('pointerdown', (event) => {
+  if (!event.target.closest('button,input,form')) showCinemaUi();
+});
+el.chatInput.addEventListener('focus', () => showCinemaUi(600000));
+el.chatInput.addEventListener('blur', () => showCinemaUi());
+el.chatForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const text = el.chatInput.value.trim();
+  if (!text) return;
+  socket.emit('chat-message', { text });
+  el.chatInput.value = '';
+  showCinemaUi(5200);
+});
+
+el.shareBtn.addEventListener('click', async () => {
+  try {
+    localStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30, max: 60 } },
+      audio: true,
+    });
+    el.video.srcObject = localStream;
+    el.video.muted = true;
+    await el.video.play().catch(() => {});
+    el.emptyState.classList.add('hidden');
+    el.shareBtn.classList.add('hidden');
+    el.stopBtn.classList.remove('hidden');
+    el.status.textContent = '송출 중 · 친구 연결 대기';
+    socket.emit('host-sharing', { sharing: true });
+
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) videoTrack.addEventListener('ended', stopShare, { once: true });
+
+    for (const viewerId of peers.keys()) await callViewer(viewerId);
+    if (localStream.getAudioTracks().length === 0) {
+      showToast('소리가 안 잡혔어. 크롬 탭과 탭 오디오 공유를 선택해줘');
+    }
+  } catch (error) {
+    if (error.name !== 'NotAllowedError') showToast('화면 공유를 시작하지 못했어');
+  }
+});
+
+el.stopBtn.addEventListener('click', stopShare);
+
+function stopShare() {
+  if (!localStream) return;
+  localStream.getTracks().forEach((track) => track.stop());
+  localStream = null;
+  closeAllPeers();
+  el.video.srcObject = null;
+  el.video.muted = false;
+  el.emptyState.classList.remove('hidden');
+  el.stopBtn.classList.add('hidden');
+  el.shareBtn.classList.remove('hidden');
+  el.status.textContent = '송출 중지됨';
+  socket.emit('host-sharing', { sharing: false });
+}
+
+function createPeer(target) {
+  closePeer(target);
+  const pc = new RTCPeerConnection({ iceServers });
+  peers.set(target, pc);
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) socket.emit('signal', { target, data: { candidate: event.candidate } });
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed'].includes(pc.connectionState)) closePeer(target);
+    if (role === 'host' && localStream) {
+      const connected = [...peers.values()].filter((peer) => peer?.connectionState === 'connected').length;
+      el.status.textContent = connected ? `송출 중 · ${connected}명 연결` : '송출 중 · 친구 연결 대기';
+    } else if (role === 'viewer') {
+      const labels = { connected: '시청 중', connecting: '연결 중', disconnected: '연결 끊김', failed: '연결 실패' };
+      if (labels[pc.connectionState]) el.status.textContent = labels[pc.connectionState];
+    }
+  };
+  return pc;
+}
+
+async function addQueuedCandidates(peerId, pc) {
+  const queue = pendingCandidates.get(peerId) || [];
+  for (const candidate of queue) await pc.addIceCandidate(candidate);
+  pendingCandidates.delete(peerId);
+}
+
+async function callViewer(viewerId) {
+  if (!localStream) return;
+  const pc = createPeer(viewerId);
+  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('signal', { target: viewerId, data: { description: pc.localDescription } });
+}
+
+socket.on('viewer-ready', async ({ viewerId, nickname: viewerName }) => {
+  if (!peers.has(viewerId)) peers.set(viewerId, null);
+  showToast(`${viewerName || '친구'}님이 들어왔어`);
+  if (localStream) await callViewer(viewerId);
+});
+
+socket.on('signal', async ({ from, data }) => {
+  try {
+    if (data.description?.type === 'offer') {
+      const pc = createPeer(from);
+      pc.ontrack = async (event) => {
+        el.video.srcObject = event.streams[0];
+        el.video.muted = false;
+        el.emptyState.classList.add('hidden');
+        el.status.textContent = '시청 중';
+        await el.video.play().catch(() => showToast('영상 화면을 한 번 눌러 재생해줘'));
+      };
+      await pc.setRemoteDescription(data.description);
+      await addQueuedCandidates(from, pc);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('signal', { target: from, data: { description: pc.localDescription } });
+      return;
+    }
+
+    if (data.description?.type === 'answer') {
+      const pc = peers.get(from);
+      if (!pc) return;
+      await pc.setRemoteDescription(data.description);
+      await addQueuedCandidates(from, pc);
+      return;
+    }
+
+    if (data.candidate) {
+      const pc = peers.get(from);
+      if (pc?.remoteDescription) await pc.addIceCandidate(data.candidate);
+      else {
+        const queue = pendingCandidates.get(from) || [];
+        queue.push(data.candidate);
+        pendingCandidates.set(from, queue);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    showToast('연결 처리 중 오류가 났어');
+  }
+});
+
+socket.on('chat-message', ({ nickname: name, text }) => addMessage(name, text));
+socket.on('system-message', ({ text }) => addMessage('', text, true));
+socket.on('host-sharing', ({ sharing }) => {
+  if (role !== 'viewer') return;
+  if (sharing) {
+    el.status.textContent = '송출 연결 중';
+    updateViewerPlaceholder('영상 연결 중', '잠시 후 자동으로 영상이 나타나.');
+    socket.emit('request-stream');
+  } else {
+    closeAllPeers();
+    el.video.srcObject = null;
+    el.status.textContent = '방장 기다리는 중';
+    updateViewerPlaceholder('송출이 잠시 멈췄어', '방장이 다시 화면 공유를 시작하면 자동으로 연결돼.');
+  }
+});
+
+socket.on('presence', ({ count, max, members }) => {
+  el.people.textContent = `👥 ${count}/${max}`;
+  el.members.replaceChildren(...members.map((member) => {
+    const chip = document.createElement('span');
+    chip.className = `member ${member.role === 'host' ? 'host' : ''}`;
+    chip.textContent = `${member.role === 'host' ? '★ ' : ''}${member.nickname}`;
+    return chip;
+  }));
+});
+
+socket.on('peer-left', ({ id, nickname: leftName }) => {
+  closePeer(id);
+  addMessage('', `${leftName}님이 방을 나갔어.`, true);
+});
+
+socket.on('host-left', () => {
+  closeAllPeers();
+  el.video.srcObject = null;
+  el.status.textContent = '방이 종료됐어';
+  updateViewerPlaceholder('방장이 나갔어', '이 상영방은 종료됐어. 새로고침해서 새 방에 들어가줘.');
+  el.chatInput.disabled = true;
+  showToast('방장이 나가서 방이 종료됐어');
+});
+
+socket.on('disconnect', () => {
+  if (!el.room.classList.contains('hidden')) el.status.textContent = '서버 재연결 중';
+});
+socket.on('connect', () => {
+  if (!el.room.classList.contains('hidden') && roomId) location.reload();
+});
+
+const invitedRoom = roomFromUrl();
+if (invitedRoom) el.roomCode.value = invitedRoom;
+showCinemaUi();

@@ -1,0 +1,16 @@
+{
+  "name": "gatibojago-watch-party",
+  "version": "1.0.0",
+  "private": true,
+  "description": "최대 4명이 화면과 소리를 함께 보는 WebRTC 상영회",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

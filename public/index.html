@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+  <title>같이보자 · 친구들과 상영회</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="app">
+    <section id="lobby" class="card lobby">
+      <div class="brand">같이보자<span>●</span></div>
+      <h1>친구들과 애니 같이 보기</h1>
+      <p class="lead">방장이 화면과 소리를 공유하면 최대 3명의 친구가 링크로 바로 볼 수 있어.</p>
+
+      <label>닉네임
+        <input id="nickname" maxlength="16" placeholder="콩닥" autocomplete="nickname" />
+      </label>
+      <button id="createBtn" class="primary wide">상영방 만들기</button>
+
+      <div class="divider"><span>초대받았다면</span></div>
+      <label>방 코드
+        <input id="roomCode" maxlength="40" placeholder="초대 링크로 들어오면 자동 입력" />
+      </label>
+      <button id="joinBtn" class="wide">방에 들어가기</button>
+
+      <p class="notice">DRM이 적용된 영상은 검은 화면이 나올 수 있어. 보유한 영상 파일이나 공유 가능한 콘텐츠에 사용해줘.</p>
+    </section>
+
+    <section id="room" class="room hidden">
+      <section id="stage" class="stage">
+        <video id="video" autoplay playsinline></video>
+
+        <div id="emptyState" class="empty-state">
+          <div class="play-icon">▶</div>
+          <h2 id="emptyTitle">화면 공유를 시작해줘</h2>
+          <p id="emptyDesc">영상이 재생되는 크롬 탭을 고르고 ‘탭 오디오 공유’를 켜줘.</p>
+        </div>
+
+        <div id="cinemaUi" class="cinema-ui visible">
+          <header class="topbar">
+            <div class="brand small">같이보자<span>●</span></div>
+            <div class="room-info"><b id="roleText">연결 중</b><span id="status">방 입장 준비</span></div>
+            <div class="header-actions">
+              <button id="copyBtn" class="icon-text">초대</button>
+              <span id="people" class="people">👥 1/4</span>
+              <button id="chatToggleBtn" class="icon-button" aria-label="채팅 숨기기" title="채팅 숨기기">💬</button>
+            </div>
+          </header>
+
+          <div class="bottom-gradient" aria-hidden="true"></div>
+
+          <div id="chatOverlay" class="chat-overlay">
+            <div id="members" class="members"></div>
+            <div id="messages" class="messages" aria-live="polite"></div>
+            <form id="chatForm">
+              <input id="chatInput" maxlength="500" autocomplete="off" placeholder="메시지 입력..." />
+              <button class="primary send" aria-label="전송">➤</button>
+            </form>
+          </div>
+
+          <div class="player-actions">
+            <button id="shareBtn" class="primary hidden">화면 공유 시작</button>
+            <button id="stopBtn" class="danger hidden">송출 중지</button>
+            <button id="fullscreenBtn">전체 화면</button>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
