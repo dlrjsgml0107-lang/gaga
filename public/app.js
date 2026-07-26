@@ -2,7 +2,7 @@
 
 const socket = io();
 const byId = (id) => document.getElementById(id);
-const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','videoBackdrop','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast','installBtn','installDialog','closeInstallBtn','installInstructions','nativeInstallBtn'];
+const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','videoBackdrop','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast','installBtn','installDialog','closeInstallBtn','installInstructions','nativeInstallBtn','inviteDialog','closeInviteBtn','inviteCode','copyCodeBtn','copyLinkBtn'];
 const el = Object.fromEntries(ids.map((id) => [id, byId(id)]));
 
 let role = 'viewer';
@@ -94,12 +94,28 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((error) => console.warn('서비스 워커 등록 실패:', error)));
 }
 
+let stableViewportHeight = Math.max(window.innerHeight, window.visualViewport?.height || 0);
+
 function updateViewportSize() {
   const viewport = window.visualViewport;
-  const height = viewport?.height || window.innerHeight;
-  const width = viewport?.width || window.innerWidth;
-  document.documentElement.style.setProperty('--app-height', `${height}px`);
-  document.documentElement.style.setProperty('--app-width', `${width}px`);
+  const visualHeight = viewport?.height || window.innerHeight;
+  const visualWidth = viewport?.width || window.innerWidth;
+  const keyboardOpen = document.activeElement === el.chatInput && stableViewportHeight - visualHeight > 120;
+
+  // Keep the movie frame fixed while the software keyboard is open.
+  // Only the chat composer is lifted above the keyboard.
+  if (!keyboardOpen) {
+    stableViewportHeight = Math.max(visualHeight, window.innerHeight);
+  }
+
+  const keyboardInset = keyboardOpen
+    ? Math.max(0, stableViewportHeight - visualHeight - (viewport?.offsetTop || 0))
+    : 0;
+
+  document.documentElement.style.setProperty('--app-height', `${stableViewportHeight}px`);
+  document.documentElement.style.setProperty('--app-width', `${visualWidth}px`);
+  document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`);
+  document.body.classList.toggle('keyboard-open', keyboardOpen);
 }
 updateViewportSize();
 window.addEventListener('resize', updateViewportSize);
@@ -156,12 +172,19 @@ function addMessage(name, text, system = false) {
     item.append(author, body);
   }
   el.messages.appendChild(item);
-  el.messages.scrollTop = el.messages.scrollHeight;
-  if (!system) {
-    setTimeout(() => item.classList.add('fading'), 8000);
-    setTimeout(() => item.remove(), 9200);
+
+  // Keep chat as a persistent conversation instead of a temporary toast.
+  // Limit the local DOM history so very long sessions do not slow the device down.
+  while (el.messages.children.length > 200) {
+    el.messages.firstElementChild?.remove();
   }
-  showCinemaUi(5200);
+
+  requestAnimationFrame(() => {
+    el.messages.scrollTop = el.messages.scrollHeight;
+  });
+
+  // New messages may reveal the controls briefly, but chat visibility is independent.
+  showCinemaUi(3200);
 }
 
 function closePeer(id) {
@@ -220,13 +243,50 @@ el.installBtn?.addEventListener('click', openInstallGuide);
 el.closeInstallBtn?.addEventListener('click', () => el.installDialog?.close?.());
 el.nativeInstallBtn?.addEventListener('click', installApp);
 el.installDialog?.addEventListener('click', (event) => { if (event.target === el.installDialog) el.installDialog.close(); });
-el.copyBtn.addEventListener('click', async () => {
+async function copyText(value) {
   try {
-    await navigator.clipboard.writeText(location.href);
-    showToast('초대 링크 복사 완료');
-  } catch {
-    showToast('주소창의 링크를 복사해줘');
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch (error) {
+    try {
+      const area = document.createElement('textarea');
+      area.value = value;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const copied = document.execCommand('copy');
+      area.remove();
+      return copied;
+    } catch {
+      return false;
+    }
   }
+}
+
+function openInviteDialog() {
+  if (!roomId) return showToast('방 코드를 불러오지 못했어');
+  el.inviteCode.textContent = roomId.toUpperCase();
+  if (typeof el.inviteDialog.showModal === 'function') el.inviteDialog.showModal();
+  else el.inviteDialog.setAttribute('open', '');
+}
+
+el.copyBtn.addEventListener('click', openInviteDialog);
+el.closeInviteBtn?.addEventListener('click', () => el.inviteDialog?.close?.());
+el.inviteDialog?.addEventListener('click', (event) => { if (event.target === el.inviteDialog) el.inviteDialog.close(); });
+el.inviteCode?.addEventListener('click', async () => {
+  const ok = await copyText(roomId);
+  showToast(ok ? '초대 코드 복사 완료' : '코드를 길게 눌러 복사해줘');
+});
+el.copyCodeBtn?.addEventListener('click', async () => {
+  const ok = await copyText(roomId);
+  showToast(ok ? '초대 코드 복사 완료' : '코드를 길게 눌러 복사해줘');
+});
+el.copyLinkBtn?.addEventListener('click', async () => {
+  const link = `${location.origin}/?room=${encodeURIComponent(roomId)}`;
+  const ok = await copyText(link);
+  showToast(ok ? '초대 링크 복사 완료' : '링크를 복사하지 못했어');
 });
 function fullscreenElement() {
   return document.fullscreenElement || document.webkitFullscreenElement || null;
@@ -359,8 +419,23 @@ el.stage.addEventListener('pointermove', () => showCinemaUi());
 el.stage.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('button,input,form')) showCinemaUi();
 });
-el.chatInput.addEventListener('focus', () => showCinemaUi(600000));
-el.chatInput.addEventListener('blur', () => showCinemaUi());
+el.chatInput.addEventListener('focus', () => {
+  showCinemaUi(600000);
+  requestAnimationFrame(() => {
+    updateViewportSize();
+    window.scrollTo(0, 0);
+  });
+  setTimeout(() => {
+    updateViewportSize();
+    window.scrollTo(0, 0);
+  }, 320);
+});
+el.chatInput.addEventListener('blur', () => {
+  document.body.classList.remove('keyboard-open');
+  document.documentElement.style.setProperty('--keyboard-inset', '0px');
+  setTimeout(updateViewportSize, 80);
+  showCinemaUi();
+});
 el.chatForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const text = el.chatInput.value.trim();

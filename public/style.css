@@ -178,3 +178,100 @@ body.pseudo-fullscreen .stage,
   .messages{max-height:32vh}.chat-overlay form{max-width:440px}
   .bottom-gradient{height:64%}
 }
+\n\n/* v8 — invite code sheet + compact landscape header */\n.invite-dialog{border:0;padding:0;background:transparent;color:#fff;width:min(430px,calc(100% - 28px));max-width:none}\n.invite-dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}\n.invite-sheet{position:relative;padding:26px 22px 22px;border:1px solid rgba(255,255,255,.16);border-radius:22px;background:rgba(18,18,18,.96);box-shadow:0 24px 80px rgba(0,0,0,.65);text-align:center}\n.invite-kicker{margin:0 0 5px;color:#aaa;font-size:13px}.invite-sheet h2{margin:0 0 16px;font-size:24px}\n.invite-code{display:block;width:100%;padding:17px 12px;border:1px solid rgba(255,255,255,.25);border-radius:14px;background:#080808;font-size:clamp(24px,7vw,36px);font-weight:950;letter-spacing:.16em;line-height:1.1;overflow-wrap:anywhere;text-transform:uppercase}\n.invite-help{margin:10px 0 18px;color:#999;font-size:12px}.invite-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.invite-actions button{height:46px}\n.header-actions{min-width:0;flex-shrink:0}.icon-text{white-space:nowrap;overflow:hidden}.invite-label{display:inline-block}\n\n@media(max-width:760px){\n  .topbar{align-items:center;gap:8px}\n  .topbar .brand.small{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}\n  .header-actions{margin-left:auto;gap:6px}\n  .icon-text{width:38px;min-width:38px;padding:0;display:inline-flex;align-items:center;justify-content:center}\n  .invite-label{display:none!important}\n}\n\n@media(max-height:560px) and (orientation:landscape){\n  .topbar{align-items:center;flex-wrap:nowrap;gap:6px;padding-top:max(6px,env(safe-area-inset-top));padding-bottom:24px}\n  .topbar .brand.small{font-size:15px;max-width:118px;line-height:1;white-space:nowrap}\n  .room-info{display:none!important}\n  .header-actions{display:flex;align-items:center;flex-wrap:nowrap;gap:5px}\n  .icon-text,.icon-button{width:34px!important;min-width:34px!important;height:32px!important;padding:0!important;display:inline-flex!important;align-items:center;justify-content:center}\n  .invite-label{display:none!important}\n  .people{height:32px;display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;padding:0 8px}\n  .invite-dialog{width:min(390px,calc(100% - 32px))}\n  .invite-sheet{padding:18px 18px 16px;border-radius:18px}\n  .invite-sheet h2{font-size:19px;margin-bottom:10px}.invite-code{padding:12px 10px;font-size:25px}.invite-help{margin:7px 0 12px}.invite-actions button{height:40px}\n}\n
+
+/* v9 — persistent chat independent from auto-hiding player controls */
+.cinema-ui{
+  opacity:1;
+  pointer-events:none;
+}
+.cinema-ui .topbar,
+.cinema-ui .player-actions,
+.cinema-ui .bottom-gradient{
+  opacity:0;
+  transition:opacity .28s ease,transform .28s ease;
+}
+.cinema-ui .topbar{transform:translateY(-8px)}
+.cinema-ui .player-actions{transform:translateX(-50%) translateY(8px)}
+.cinema-ui.visible .topbar,
+.cinema-ui:focus-within .topbar,
+.cinema-ui.visible .player-actions,
+.cinema-ui:focus-within .player-actions,
+.cinema-ui.visible .bottom-gradient,
+.cinema-ui:focus-within .bottom-gradient{
+  opacity:1;
+}
+.cinema-ui.visible .topbar,
+.cinema-ui:focus-within .topbar{transform:none}
+.cinema-ui.visible .player-actions,
+.cinema-ui:focus-within .player-actions{transform:translateX(-50%)}
+
+/* Chat stays visible until the viewer explicitly toggles it off. */
+.cinema-ui .chat-overlay{
+  opacity:1;
+  pointer-events:auto;
+}
+.cinema-ui .chat-overlay.chat-hidden{
+  opacity:0;
+  pointer-events:none;
+}
+.messages{
+  justify-content:flex-start;
+  min-height:0;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 100%);
+}
+.message,.system{
+  flex:0 0 auto;
+}
+.message.fading,.system.fading{
+  animation:none!important;
+  opacity:1!important;
+  transform:none!important;
+}
+
+@media(max-height:560px) and (orientation:landscape){
+  .cinema-ui .player-actions{transform:translateY(8px)}
+  .cinema-ui.visible .player-actions,
+  .cinema-ui:focus-within .player-actions{transform:none}
+  .messages{max-height:38vh}
+}
+
+
+/* v10 — mobile keyboard-safe chat composer */
+:root{--keyboard-inset:0px}
+html,body{position:fixed;inset:0;overflow:hidden;width:100%;height:100%;}
+body.keyboard-open .stage{
+  height:var(--app-height)!important;
+  min-height:0!important;
+}
+body.keyboard-open .chat-overlay{
+  bottom:calc(var(--keyboard-inset) + max(8px,env(safe-area-inset-bottom)))!important;
+  max-height:calc(100% - var(--keyboard-inset) - 18px);
+  transition:bottom .18s ease-out;
+}
+body.keyboard-open .messages{
+  max-height:min(25vh,150px)!important;
+}
+body.keyboard-open .player-actions,
+body.keyboard-open .topbar,
+body.keyboard-open .bottom-gradient{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+body.keyboard-open .chat-overlay form{
+  position:relative;
+  z-index:8;
+}
+body.keyboard-open .chat-overlay input{
+  font-size:16px; /* prevents iOS auto zoom */
+}
+@media(max-height:560px) and (orientation:landscape){
+  body.keyboard-open .chat-overlay{
+    left:max(8px,env(safe-area-inset-left));
+    right:max(8px,env(safe-area-inset-right));
+    width:auto;
+  }
+  body.keyboard-open .messages{max-height:18vh!important}
+}

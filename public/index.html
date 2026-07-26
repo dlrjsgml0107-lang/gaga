@@ -51,7 +51,7 @@
             <div class="brand small">같이보자<span>●</span></div>
             <div class="room-info"><b id="roleText">연결 중</b><span id="status">방 입장 준비</span></div>
             <div class="header-actions">
-              <button id="copyBtn" class="icon-text" aria-label="초대 링크 복사">🔗 <span>초대</span></button>
+              <button id="copyBtn" class="icon-text" aria-label="초대 코드 보기" title="초대 코드 보기">🔗<span class="invite-label">초대</span></button>
               <span id="people" class="people">👥 1/4</span>
               <button id="chatToggleBtn" class="icon-button" aria-label="채팅 숨기기" title="채팅 숨기기">💬</button>
             </div>
@@ -89,6 +89,20 @@
         <span>3. 홈 화면의 <b>같이보자</b> 아이콘으로 실행</span>
       </div>
       <button id="nativeInstallBtn" class="primary wide hidden">지금 설치하기</button>
+    </div>
+  </dialog>
+
+  <dialog id="inviteDialog" class="invite-dialog">
+    <div class="invite-sheet">
+      <button id="closeInviteBtn" class="dialog-close" aria-label="닫기">✕</button>
+      <p class="invite-kicker">같이볼 친구에게 알려줘</p>
+      <h2>초대 코드</h2>
+      <button id="inviteCode" class="invite-code" type="button" aria-label="초대 코드 복사"></button>
+      <p class="invite-help">코드를 눌러도 바로 복사돼.</p>
+      <div class="invite-actions">
+        <button id="copyCodeBtn" class="primary">코드 복사</button>
+        <button id="copyLinkBtn">링크 복사</button>
+      </div>
     </div>
   </dialog>
   <div id="toast" role="status"></div>
