@@ -501,7 +501,7 @@ async function requestDisplayStream() {
   const attempts = [
     {
       video: {
-        frameRate: { ideal: 60, max: 60 },
+        frameRate: { ideal: 30, max: 30 },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
@@ -536,7 +536,7 @@ el.shareBtn.addEventListener('click', async () => {
 
     try { captureTrack.contentHint = 'motion'; } catch (_) {}
     try {
-      await captureTrack.applyConstraints({ frameRate: { ideal: 60, max: 60 } });
+      await captureTrack.applyConstraints({ frameRate: { ideal: 30, max: 30 } });
     } catch (constraintError) {
       console.warn('프레임 설정을 적용하지 못했지만 공유는 계속해:', constraintError);
     }
@@ -626,10 +626,11 @@ async function callViewer(viewerId) {
   const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
   if (videoSender) {
     const parameters = videoSender.getParameters();
-    parameters.degradationPreference = 'maintain-framerate';
+    parameters.degradationPreference = 'maintain-resolution';
     if (!parameters.encodings?.length) parameters.encodings = [{}];
-    parameters.encodings[0].maxBitrate = 8_000_000;
-    parameters.encodings[0].maxFramerate = 60;
+    parameters.encodings[0].maxBitrate = 12_000_000;
+    parameters.encodings[0].scaleResolutionDownBy = 1.0;
+    parameters.encodings[0].maxFramerate = 30;
     await videoSender.setParameters(parameters).catch(() => {});
   }
 
