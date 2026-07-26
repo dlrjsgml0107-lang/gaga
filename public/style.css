@@ -94,3 +94,87 @@ body.pseudo-fullscreen .stage video,
   .stage:fullscreen,
   .stage:-webkit-full-screen { height: 100vh; }
 }
+
+/* v6 — installable app mode and full-looking uncropped video */
+.stage .video-backdrop{position:absolute;inset:-5%;width:110%;height:110%;object-fit:cover!important;filter:blur(28px) brightness(.42) saturate(1.15);transform:scale(1.08)!important;opacity:.9;background:#000;z-index:0}
+.stage .video-main{position:absolute;inset:0;width:100%;height:100%;object-fit:contain!important;object-position:center;z-index:1;background:transparent}
+.empty-state{z-index:2}.cinema-ui{z-index:3}
+.install-button{border-color:rgba(255,255,255,.28);background:linear-gradient(135deg,#292929,#151515)}
+.install-dialog{border:0;padding:0;background:transparent;color:#fff;width:min(430px,calc(100% - 28px));max-width:none}
+.install-dialog::backdrop{background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.install-sheet{position:relative;background:#171717;border:1px solid #3b3b3b;border-radius:22px;padding:28px;box-shadow:0 24px 90px #000;text-align:center}
+.dialog-close{position:absolute;right:14px;top:14px;width:38px;height:38px;padding:0;border-radius:50%}
+.app-icon-preview{width:92px;height:92px;margin:4px auto 18px;border-radius:22px;background:#090909;border:1px solid #383838;display:grid;place-content:center;font-size:20px;font-weight:950;line-height:1.05;box-shadow:0 12px 35px #000}.app-icon-preview span{color:var(--red)}
+.install-sheet h2{margin:0 0 8px;font-size:24px}.install-sheet p{color:#bbb;line-height:1.55;margin:0 0 18px}
+.install-steps{display:grid;gap:10px;text-align:left;background:#0e0e0e;border:1px solid #303030;border-radius:14px;padding:15px;margin-bottom:16px}.install-steps span{font-size:14px;color:#ddd}
+body.standalone-app{background:#000;overflow:hidden}
+body.standalone-app .stage{height:100dvh;min-height:0}
+body.standalone-app .topbar{padding-top:max(10px,env(safe-area-inset-top))}
+@media (max-width:900px) and (orientation:landscape){
+  body.standalone-app .topbar{padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 24px max(12px,env(safe-area-inset-left))}
+  body.standalone-app .brand.small{font-size:16px}
+  body.standalone-app .room-info{display:none}
+  body.standalone-app .player-actions{top:auto;right:max(12px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom))}
+  body.standalone-app .chat-overlay{bottom:max(10px,env(safe-area-inset-bottom));width:min(52vw,560px)}
+  body.standalone-app .messages{max-height:31vh}
+}
+
+/* v7 — unified iOS/Android mobile OTT player */
+:root{--app-height:100dvh;--app-width:100vw;--dock-h:68px}
+html,body,.app,.room{min-height:var(--app-height)}
+.stage{height:var(--app-height);min-height:0}
+
+/* Cleaner OTT top layer */
+.topbar{padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 72px max(16px,env(safe-area-inset-left));align-items:flex-start}
+.topbar .brand.small{font-size:20px;text-shadow:0 2px 12px #000}
+.header-actions button,.people{background:rgba(8,8,8,.48);border-color:rgba(255,255,255,.18);box-shadow:0 6px 24px rgba(0,0,0,.2)}
+.icon-text span{margin-left:5px}
+
+/* Bottom app-style dock */
+.player-actions{left:50%;right:auto;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:8px;padding:7px;border:1px solid rgba(255,255,255,.14);border-radius:20px;background:rgba(10,10,10,.62);box-shadow:0 12px 42px rgba(0,0,0,.5);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.player-actions .dock-button{height:52px;min-width:96px;padding:7px 13px;border:0;border-radius:14px;display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:7px;background:transparent}
+.player-actions .dock-button.primary{background:var(--red)}
+.player-actions .dock-button.danger{background:#a91d28}
+.dock-icon{font-size:19px;line-height:1}.dock-label{font-size:12px;white-space:nowrap}
+
+/* Chat floats above the dock and does not shrink the video */
+.chat-overlay{bottom:calc(max(14px,env(safe-area-inset-bottom)) + var(--dock-h) + 12px);width:min(560px,calc(100% - 48px))}
+.chat-overlay form{max-width:520px}
+.bottom-gradient{height:56%;background:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,.34) 40%,transparent)}
+
+/* Main stream remains fully visible; blurred layer fills unused aspect ratio. */
+.stage .video-main{object-fit:contain!important;width:100%;height:100%;max-width:none;max-height:none}
+.stage .video-backdrop{display:block;object-fit:cover!important;opacity:.68;filter:blur(34px) brightness(.34) saturate(1.1)}
+
+/* Standalone PWA and Android fullscreen use the exact visual viewport. */
+body.standalone-app .room,
+body.standalone-app .stage,
+body.mobile-player-mode .room,
+body.mobile-player-mode .stage,
+body.pseudo-fullscreen .room,
+body.pseudo-fullscreen .stage,
+.stage:fullscreen,
+.stage:-webkit-full-screen{width:var(--app-width);height:var(--app-height);min-height:0;inset:0}
+
+@media(max-width:760px){
+  :root{--dock-h:61px}
+  .topbar{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 54px max(10px,env(safe-area-inset-left))}
+  .brand.small{font-size:17px}.header-actions{gap:6px}.people{padding:7px 9px}
+  .icon-text{display:inline-flex;width:38px;padding:0;align-items:center;justify-content:center}.icon-text span{display:none}
+  .player-actions{top:auto;right:auto;bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-width:calc(100% - 20px);padding:5px;border-radius:17px}
+  .player-actions .dock-button{height:47px;min-width:84px;padding:6px 10px;border-radius:12px}
+  .dock-icon{font-size:17px}.dock-label{font-size:11px}
+  .chat-overlay{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--dock-h) + 7px);width:auto}
+  .members{display:none}.messages{max-height:30vh}.chat-overlay form{max-width:none}
+}
+
+@media(max-height:560px) and (orientation:landscape){
+  :root{--dock-h:53px}
+  .topbar{padding:7px max(10px,env(safe-area-inset-right)) 30px max(10px,env(safe-area-inset-left))}
+  .brand.small{font-size:15px}.people{font-size:10px;padding:5px 8px}.icon-button,.icon-text{height:31px;width:34px}
+  .player-actions{left:auto;right:max(8px,env(safe-area-inset-right));transform:none;bottom:max(7px,env(safe-area-inset-bottom));padding:4px}
+  .player-actions .dock-button{height:42px;min-width:76px;padding:5px 8px}.dock-label{font-size:10px}
+  .chat-overlay{left:max(9px,env(safe-area-inset-left));right:auto;bottom:max(7px,env(safe-area-inset-bottom));width:min(52vw,560px)}
+  .messages{max-height:32vh}.chat-overlay form{max-width:440px}
+  .bottom-gradient{height:64%}
+}

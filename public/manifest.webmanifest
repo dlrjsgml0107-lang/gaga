@@ -1,0 +1,16 @@
+{
+  "name": "같이보자 · 친구들과 상영회",
+  "short_name": "같이보자",
+  "description": "친구들과 화면을 공유하고 채팅하며 같이 보는 상영회",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#050505",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -4,6 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#050505" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="같이보자" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <title>같이보자 · 친구들과 상영회</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
@@ -18,6 +24,7 @@
         <input id="nickname" maxlength="16" placeholder="콩닥" autocomplete="nickname" />
       </label>
       <button id="createBtn" class="primary wide">상영방 만들기</button>
+      <button id="installBtn" class="install-button wide hidden">📱 앱처럼 설치하기</button>
 
       <div class="divider"><span>초대받았다면</span></div>
       <label>방 코드
@@ -30,7 +37,8 @@
 
     <section id="room" class="room hidden">
       <section id="stage" class="stage">
-        <video id="video" autoplay playsinline></video>
+        <video id="videoBackdrop" class="video-backdrop" autoplay playsinline muted aria-hidden="true"></video>
+        <video id="video" class="video-main" autoplay playsinline></video>
 
         <div id="emptyState" class="empty-state">
           <div class="play-icon">▶</div>
@@ -43,7 +51,7 @@
             <div class="brand small">같이보자<span>●</span></div>
             <div class="room-info"><b id="roleText">연결 중</b><span id="status">방 입장 준비</span></div>
             <div class="header-actions">
-              <button id="copyBtn" class="icon-text">초대</button>
+              <button id="copyBtn" class="icon-text" aria-label="초대 링크 복사">🔗 <span>초대</span></button>
               <span id="people" class="people">👥 1/4</span>
               <button id="chatToggleBtn" class="icon-button" aria-label="채팅 숨기기" title="채팅 숨기기">💬</button>
             </div>
@@ -60,15 +68,29 @@
             </form>
           </div>
 
-          <div class="player-actions">
-            <button id="shareBtn" class="primary hidden">화면 공유 시작</button>
-            <button id="stopBtn" class="danger hidden">송출 중지</button>
-            <button id="fullscreenBtn">전체 화면</button>
-          </div>
+          <nav class="player-actions" aria-label="플레이어 메뉴">
+            <button id="shareBtn" class="dock-button primary hidden"><span class="dock-icon">📡</span><span class="dock-label">공유 시작</span></button>
+            <button id="stopBtn" class="dock-button danger hidden"><span class="dock-icon">■</span><span class="dock-label">송출 중지</span></button>
+            <button id="fullscreenBtn" class="dock-button"><span class="dock-icon">⛶</span><span class="dock-label">집중 모드</span></button>
+          </nav>
         </div>
       </section>
     </section>
   </main>
+  <dialog id="installDialog" class="install-dialog">
+    <div class="install-sheet">
+      <button id="closeInstallBtn" class="dialog-close" aria-label="닫기">✕</button>
+      <div class="app-icon-preview">같이<br>보자<span>●</span></div>
+      <h2>홈 화면에 추가해줘</h2>
+      <p id="installInstructions">Safari의 공유 버튼을 누른 다음 ‘홈 화면에 추가’를 선택하면 주소창 없이 앱처럼 볼 수 있어.</p>
+      <div class="install-steps ios-steps">
+        <span>1. Safari의 <b>공유</b> 버튼 누르기</span>
+        <span>2. 아래로 내려 <b>홈 화면에 추가</b></span>
+        <span>3. 홈 화면의 <b>같이보자</b> 아이콘으로 실행</span>
+      </div>
+      <button id="nativeInstallBtn" class="primary wide hidden">지금 설치하기</button>
+    </div>
+  </dialog>
   <div id="toast" role="status"></div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>

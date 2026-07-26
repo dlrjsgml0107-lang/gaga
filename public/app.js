@@ -2,7 +2,7 @@
 
 const socket = io();
 const byId = (id) => document.getElementById(id);
-const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast'];
+const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','videoBackdrop','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast','installBtn','installDialog','closeInstallBtn','installInstructions','nativeInstallBtn'];
 const el = Object.fromEntries(ids.map((id) => [id, byId(id)]));
 
 let role = 'viewer';
@@ -13,6 +13,7 @@ let toastTimer = null;
 let uiTimer = null;
 let chatHidden = false;
 let pseudoFullscreen = false;
+let deferredInstallPrompt = null;
 const peers = new Map();
 const pendingCandidates = new Map();
 
@@ -20,6 +21,90 @@ const iceServers = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
+
+function isStandaloneApp() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isIosSafari() {
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+}
+
+function updateInstallUi() {
+  const mobile = isMobileDevice();
+  const standalone = isStandaloneApp();
+  document.body.classList.toggle('standalone-app', standalone);
+  el.installBtn?.classList.toggle('hidden', !mobile || standalone);
+  if (standalone && el.fullscreenBtn) { const label = el.fullscreenBtn.querySelector('.dock-label'); if (label) label.textContent = '집중 모드'; }
+}
+
+function openInstallGuide() {
+  if (!el.installDialog) return;
+  const nativeAvailable = Boolean(deferredInstallPrompt);
+  el.nativeInstallBtn?.classList.toggle('hidden', !nativeAvailable);
+  const steps = el.installDialog.querySelector('.ios-steps');
+  if (steps) steps.classList.toggle('hidden', nativeAvailable && !isIosSafari());
+  if (el.installInstructions) {
+    el.installInstructions.textContent = nativeAvailable && !isIosSafari()
+      ? '설치하면 주소창 없이 독립된 앱 화면으로 열려.'
+      : 'Safari의 공유 버튼을 누른 다음 ‘홈 화면에 추가’를 선택하면 주소창과 탭바 없이 앱처럼 볼 수 있어.';
+  }
+  if (typeof el.installDialog.showModal === 'function') el.installDialog.showModal();
+  else el.installDialog.setAttribute('open', '');
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) return openInstallGuide();
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice.catch(() => null);
+  deferredInstallPrompt = null;
+  updateInstallUi();
+  el.installDialog?.close?.();
+}
+
+function setVideoStream(stream, muted = false) {
+  el.video.srcObject = stream;
+  el.video.muted = muted;
+  if (el.videoBackdrop) {
+    el.videoBackdrop.srcObject = stream;
+    el.videoBackdrop.muted = true;
+    el.videoBackdrop.play().catch(() => {});
+  }
+}
+
+function clearVideoStream() {
+  el.video.srcObject = null;
+  if (el.videoBackdrop) el.videoBackdrop.srcObject = null;
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  updateInstallUi();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  updateInstallUi();
+  showToast('같이보자 설치 완료');
+});
+window.matchMedia('(display-mode: standalone)').addEventListener?.('change', updateInstallUi);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((error) => console.warn('서비스 워커 등록 실패:', error)));
+}
+
+function updateViewportSize() {
+  const viewport = window.visualViewport;
+  const height = viewport?.height || window.innerHeight;
+  const width = viewport?.width || window.innerWidth;
+  document.documentElement.style.setProperty('--app-height', `${height}px`);
+  document.documentElement.style.setProperty('--app-width', `${width}px`);
+}
+updateViewportSize();
+window.addEventListener('resize', updateViewportSize);
+window.visualViewport?.addEventListener('resize', updateViewportSize);
+window.visualViewport?.addEventListener('scroll', updateViewportSize);
 
 function showToast(text) {
   clearTimeout(toastTimer);
@@ -125,11 +210,16 @@ function enterRoom(asRole, rawId) {
       updateViewerPlaceholder('방장 송출을 기다리는 중', '화면 공유가 시작되면 이곳에 자동으로 재생돼.');
     }
     addMessage('', `${nickname}님으로 입장했어.`, true);
+    if (isStandaloneApp() && isMobileDevice()) lockLandscape();
   });
 }
 
 el.createBtn.addEventListener('click', () => enterRoom('host', randomRoom()));
 el.joinBtn.addEventListener('click', () => enterRoom('viewer', el.roomCode.value));
+el.installBtn?.addEventListener('click', openInstallGuide);
+el.closeInstallBtn?.addEventListener('click', () => el.installDialog?.close?.());
+el.nativeInstallBtn?.addEventListener('click', installApp);
+el.installDialog?.addEventListener('click', (event) => { if (event.target === el.installDialog) el.installDialog.close(); });
 el.copyBtn.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(location.href);
@@ -170,7 +260,9 @@ function unlockOrientation() {
 
 function syncFullscreenButton() {
   const active = Boolean(fullscreenElement()) || pseudoFullscreen;
-  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '화면 맞춤';
+  const label = el.fullscreenBtn.querySelector('.dock-label');
+  if (label) label.textContent = active ? '집중 모드 종료' : '집중 모드';
+  else el.fullscreenBtn.textContent = active ? '집중 모드 종료' : '집중 모드';
   el.fullscreenBtn.setAttribute('aria-pressed', String(active));
   setPlayerMode(active);
 }
@@ -197,6 +289,11 @@ async function enterFallbackPlayerMode() {
 
 async function toggleFullscreen() {
   const target = el.stage;
+
+  if (isIosSafari() && isMobileDevice() && !isStandaloneApp()) {
+    openInstallGuide();
+    return;
+  }
 
   try {
     if (fullscreenElement()) {
@@ -321,8 +418,7 @@ el.shareBtn.addEventListener('click', async () => {
       console.warn('프레임 설정을 적용하지 못했지만 공유는 계속해:', constraintError);
     }
 
-    el.video.srcObject = localStream;
-    el.video.muted = true;
+    setVideoStream(localStream, true);
     await el.video.play().catch((playError) => console.warn('로컬 미리보기 재생 실패:', playError));
     el.emptyState.classList.add('hidden');
     el.shareBtn.classList.add('hidden');
@@ -362,7 +458,7 @@ function stopShare() {
   localStream.getTracks().forEach((track) => track.stop());
   localStream = null;
   closeAllPeers();
-  el.video.srcObject = null;
+  clearVideoStream();
   el.video.muted = false;
   el.emptyState.classList.remove('hidden');
   el.stopBtn.classList.add('hidden');
@@ -430,8 +526,7 @@ socket.on('signal', async ({ from, data }) => {
     if (data.description?.type === 'offer') {
       const pc = createPeer(from);
       pc.ontrack = async (event) => {
-        el.video.srcObject = event.streams[0];
-        el.video.muted = false;
+        setVideoStream(event.streams[0], false);
         el.emptyState.classList.add('hidden');
         el.status.textContent = '시청 중';
         await el.video.play().catch(() => showToast('영상 화면을 한 번 눌러 재생해줘'));
@@ -477,7 +572,7 @@ socket.on('host-sharing', ({ sharing }) => {
     socket.emit('request-stream');
   } else {
     closeAllPeers();
-    el.video.srcObject = null;
+    clearVideoStream();
     el.status.textContent = '방장 기다리는 중';
     updateViewerPlaceholder('송출이 잠시 멈췄어', '방장이 다시 화면 공유를 시작하면 자동으로 연결돼.');
   }
@@ -500,7 +595,7 @@ socket.on('peer-left', ({ id, nickname: leftName }) => {
 
 socket.on('host-left', () => {
   closeAllPeers();
-  el.video.srcObject = null;
+  clearVideoStream();
   el.status.textContent = '방이 종료됐어';
   updateViewerPlaceholder('방장이 나갔어', '이 상영방은 종료됐어. 새로고침해서 새 방에 들어가줘.');
   el.chatInput.disabled = true;
@@ -517,3 +612,5 @@ socket.on('connect', () => {
 const invitedRoom = roomFromUrl();
 if (invitedRoom) el.roomCode.value = invitedRoom;
 showCinemaUi();
+
+updateInstallUi();
