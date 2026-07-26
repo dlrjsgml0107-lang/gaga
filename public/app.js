@@ -5,6 +5,27 @@ const byId = (id) => document.getElementById(id);
 const ids = ['lobby','room','stage','cinemaUi','chatOverlay','chatToggleBtn','nickname','roomCode','createBtn','joinBtn','copyBtn','roleText','status','people','members','video','videoBackdrop','emptyState','emptyTitle','emptyDesc','shareBtn','stopBtn','fullscreenBtn','messages','chatForm','chatInput','toast','installBtn','installDialog','closeInstallBtn','installInstructions','nativeInstallBtn','inviteDialog','closeInviteBtn','inviteCode','copyCodeBtn','copyLinkBtn'];
 const el = Object.fromEntries(ids.map((id) => [id, byId(id)]));
 
+// v12: mount chat at the document root so control auto-hide can never hide it.
+if (el.chatOverlay && el.chatOverlay.parentElement !== document.body) {
+  document.body.appendChild(el.chatOverlay);
+}
+
+function enforcePersistentChat() {
+  if (!el.chatOverlay || chatHidden) return;
+  el.chatOverlay.classList.remove('hidden');
+  el.chatOverlay.style.setProperty('display', 'grid', 'important');
+  el.chatOverlay.style.setProperty('opacity', '1', 'important');
+  el.chatOverlay.style.setProperty('visibility', 'visible', 'important');
+  el.chatOverlay.style.setProperty('pointer-events', 'auto', 'important');
+  el.chatOverlay.style.setProperty('transform', 'none', 'important');
+}
+
+const chatVisibilityObserver = new MutationObserver(() => enforcePersistentChat());
+if (el.chatOverlay) {
+  chatVisibilityObserver.observe(el.chatOverlay, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+}
+
+
 let role = 'viewer';
 let roomId = '';
 let nickname = '';
@@ -121,6 +142,9 @@ updateViewportSize();
 window.addEventListener('resize', updateViewportSize);
 window.visualViewport?.addEventListener('resize', updateViewportSize);
 window.visualViewport?.addEventListener('scroll', updateViewportSize);
+window.setInterval(enforcePersistentChat, 1000);
+window.addEventListener('pageshow', enforcePersistentChat);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) enforcePersistentChat(); });
 
 function showToast(text) {
   clearTimeout(toastTimer);
@@ -136,13 +160,23 @@ function showCinemaUi(duration = 3200) {
   clearTimeout(uiTimer);
   if (document.activeElement === el.chatInput) return;
   uiTimer = setTimeout(() => {
-    if (document.activeElement !== el.chatInput) el.cinemaUi.classList.remove('visible');
+    if (document.activeElement !== el.chatInput) {
+      el.cinemaUi.classList.remove('visible');
+      enforcePersistentChat();
+    }
   }, duration);
 }
 
 function setChatHidden(hidden) {
   chatHidden = hidden;
   el.chatOverlay.classList.toggle('chat-hidden', hidden);
+  if (hidden) {
+    el.chatOverlay.style.setProperty('opacity', '0', 'important');
+    el.chatOverlay.style.setProperty('visibility', 'hidden', 'important');
+    el.chatOverlay.style.setProperty('pointer-events', 'none', 'important');
+  } else {
+    enforcePersistentChat();
+  }
   el.chatToggleBtn.textContent = hidden ? '👁' : '💬';
   el.chatToggleBtn.title = hidden ? '채팅 보이기' : '채팅 숨기기';
   el.chatToggleBtn.setAttribute('aria-label', hidden ? '채팅 보이기' : '채팅 숨기기');

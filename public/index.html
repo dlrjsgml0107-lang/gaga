@@ -59,20 +59,21 @@
 
           <div class="bottom-gradient" aria-hidden="true"></div>
 
-          <div id="chatOverlay" class="chat-overlay">
-            <div id="members" class="members"></div>
-            <div id="messages" class="messages" aria-live="polite"></div>
-            <form id="chatForm">
-              <input id="chatInput" maxlength="500" autocomplete="off" placeholder="메시지 입력..." />
-              <button class="primary send" aria-label="전송">➤</button>
-            </form>
-          </div>
-
           <nav class="player-actions" aria-label="플레이어 메뉴">
             <button id="shareBtn" class="dock-button primary hidden"><span class="dock-icon">📡</span><span class="dock-label">공유 시작</span></button>
             <button id="stopBtn" class="dock-button danger hidden"><span class="dock-icon">■</span><span class="dock-label">송출 중지</span></button>
             <button id="fullscreenBtn" class="dock-button"><span class="dock-icon">⛶</span><span class="dock-label">집중 모드</span></button>
           </nav>
+        </div>
+
+        <!-- Chat is intentionally outside cinemaUi so auto-hiding controls can never hide it. -->
+        <div id="chatOverlay" class="chat-overlay persistent-chat">
+          <div id="members" class="members"></div>
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <form id="chatForm">
+            <input id="chatInput" maxlength="500" autocomplete="off" placeholder="메시지 입력..." />
+            <button class="primary send" aria-label="전송">➤</button>
+          </form>
         </div>
       </section>
     </section>

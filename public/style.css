@@ -275,3 +275,57 @@ body.keyboard-open .chat-overlay input{
   }
   body.keyboard-open .messages{max-height:18vh!important}
 }
+
+
+/* v11 — persistent chat is a stage-level layer, fully independent of auto-hidden controls */
+.stage > .persistent-chat{
+  z-index:4;
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+.stage > .persistent-chat.chat-hidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(18px);
+}
+/* Removing .visible from cinemaUi must never affect the chat sibling. */
+.cinema-ui:not(.visible) ~ .persistent-chat:not(.chat-hidden){
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transform:none!important;
+}
+body.keyboard-open .stage > .persistent-chat{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
+
+/* v12 — body-level persistent chat portal */
+body > #chatOverlay.persistent-chat{
+  position:fixed!important;z-index:2147483000!important;display:grid!important;
+  opacity:1!important;visibility:visible!important;pointer-events:auto!important;
+  left:max(24px,env(safe-area-inset-left))!important;
+  bottom:max(24px,env(safe-area-inset-bottom))!important;
+  width:min(560px,calc(100vw - 48px))!important;transform:none!important;
+}
+body > #chatOverlay.persistent-chat.chat-hidden{
+  opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+}
+body.keyboard-open > #chatOverlay.persistent-chat{
+  bottom:calc(var(--keyboard-inset) + max(8px,env(safe-area-inset-bottom)))!important;
+}
+@media(max-width:760px){body > #chatOverlay.persistent-chat{
+  left:max(10px,env(safe-area-inset-left))!important;right:max(10px,env(safe-area-inset-right))!important;
+  bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--dock-h) + 7px)!important;width:auto!important;
+}}
+@media(max-height:560px) and (orientation:landscape){body > #chatOverlay.persistent-chat{
+  left:max(9px,env(safe-area-inset-left))!important;right:auto!important;
+  bottom:max(7px,env(safe-area-inset-bottom))!important;width:min(52vw,560px)!important;
+}body.keyboard-open > #chatOverlay.persistent-chat{
+  left:max(8px,env(safe-area-inset-left))!important;right:max(8px,env(safe-area-inset-right))!important;
+  width:auto!important;bottom:calc(var(--keyboard-inset) + max(6px,env(safe-area-inset-bottom)))!important;
+}}
