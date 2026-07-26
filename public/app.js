@@ -12,6 +12,7 @@ let localStream = null;
 let toastTimer = null;
 let uiTimer = null;
 let chatHidden = false;
+let pseudoFullscreen = false;
 const peers = new Map();
 const pendingCandidates = new Map();
 
@@ -45,6 +46,7 @@ function setChatHidden(hidden) {
   el.chatToggleBtn.title = hidden ? '채팅 보이기' : '채팅 숨기기';
   el.chatToggleBtn.setAttribute('aria-label', hidden ? '채팅 보이기' : '채팅 숨기기');
   showCinemaUi();
+syncFullscreenButton();
 }
 
 function randomRoom() {
@@ -136,11 +138,65 @@ el.copyBtn.addEventListener('click', async () => {
     showToast('주소창의 링크를 복사해줘');
   }
 });
-el.fullscreenBtn.addEventListener('click', () => {
+function fullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function syncFullscreenButton() {
+  const active = Boolean(fullscreenElement()) || pseudoFullscreen;
+  el.fullscreenBtn.textContent = active ? '전체 화면 종료' : '전체 화면';
+  el.fullscreenBtn.setAttribute('aria-pressed', String(active));
+}
+
+async function exitFullscreen() {
+  if (document.exitFullscreen) return document.exitFullscreen();
+  if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+}
+
+async function toggleFullscreen() {
   const target = el.stage;
-  if (document.fullscreenElement) document.exitFullscreen?.();
-  else target.requestFullscreen?.();
-});
+
+  try {
+    if (fullscreenElement()) {
+      await exitFullscreen();
+      return;
+    }
+
+    if (pseudoFullscreen) {
+      pseudoFullscreen = false;
+      document.body.classList.remove('pseudo-fullscreen');
+      syncFullscreenButton();
+      return;
+    }
+
+    if (target.requestFullscreen) {
+      await target.requestFullscreen({ navigationUI: 'hide' });
+      return;
+    }
+
+    if (target.webkitRequestFullscreen) {
+      target.webkitRequestFullscreen();
+      return;
+    }
+
+    // iPhone Safari는 일반 요소 전체화면을 지원하지 않는 경우가 많아
+    // 영상과 채팅 UI를 화면에 고정하는 대체 전체화면을 사용한다.
+    pseudoFullscreen = true;
+    document.body.classList.add('pseudo-fullscreen');
+    syncFullscreenButton();
+    showToast('브라우저 제한으로 화면 고정 모드를 사용해');
+  } catch (error) {
+    console.error(error);
+    pseudoFullscreen = !pseudoFullscreen;
+    document.body.classList.toggle('pseudo-fullscreen', pseudoFullscreen);
+    syncFullscreenButton();
+    showToast('화면 고정 모드로 전환했어');
+  }
+}
+
+el.fullscreenBtn.addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', syncFullscreenButton);
+document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
 el.chatToggleBtn.addEventListener('click', () => setChatHidden(!chatHidden));
 el.stage.addEventListener('pointermove', () => showCinemaUi());
 el.stage.addEventListener('pointerdown', (event) => {
@@ -160,9 +216,23 @@ el.chatForm.addEventListener('submit', (event) => {
 el.shareBtn.addEventListener('click', async () => {
   try {
     localStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 } },
+      video: {
+        frameRate: { ideal: 60, min: 30, max: 60 },
+        width: { ideal: 1920, max: 2560 },
+        height: { ideal: 1080, max: 1440 },
+      },
       audio: true,
     });
+
+    const captureTrack = localStream.getVideoTracks()[0];
+    if (captureTrack) {
+      captureTrack.contentHint = 'motion';
+      await captureTrack.applyConstraints({
+        frameRate: { ideal: 60, min: 30, max: 60 },
+        width: { ideal: 1920, max: 2560 },
+        height: { ideal: 1080, max: 1440 },
+      }).catch(() => {});
+    }
     el.video.srcObject = localStream;
     el.video.muted = true;
     await el.video.play().catch(() => {});
@@ -232,6 +302,17 @@ async function callViewer(viewerId) {
   if (!localStream) return;
   const pc = createPeer(viewerId);
   localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+  const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
+  if (videoSender) {
+    const parameters = videoSender.getParameters();
+    parameters.degradationPreference = 'maintain-framerate';
+    if (!parameters.encodings?.length) parameters.encodings = [{}];
+    parameters.encodings[0].maxBitrate = 8_000_000;
+    parameters.encodings[0].maxFramerate = 60;
+    await videoSender.setParameters(parameters).catch(() => {});
+  }
+
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   socket.emit('signal', { target: viewerId, data: { description: pc.localDescription } });
