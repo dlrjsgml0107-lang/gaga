@@ -17,6 +17,7 @@ function enforcePersistentChat() {
 }
 
 let chatHidden = false;
+let composerOpen = false;
 let role = 'viewer';
 let roomId = '';
 let nickname = '';
@@ -149,20 +150,35 @@ function showCinemaUi(duration = 3200) {
   uiTimer = setTimeout(() => {
     if (document.activeElement !== el.chatInput) {
       el.cinemaUi.classList.remove('visible');
+      setComposerOpen(false);
       enforcePersistentChat();
     }
   }, duration);
 }
 
+function setComposerOpen(open, focusInput = false) {
+  composerOpen = Boolean(open);
+  el.chatOverlay?.classList.toggle('composer-open', composerOpen);
+  el.chatToggleBtn?.classList.toggle('active', composerOpen);
+  if (el.chatToggleBtn) {
+    el.chatToggleBtn.textContent = composerOpen ? '✕' : '💬';
+    el.chatToggleBtn.title = composerOpen ? '입력창 닫기' : '채팅 입력';
+    el.chatToggleBtn.setAttribute('aria-label', composerOpen ? '입력창 닫기' : '채팅 입력');
+  }
+  if (composerOpen) {
+    showCinemaUi(600000);
+    if (focusInput) setTimeout(() => el.chatInput?.focus({ preventScroll: true }), 30);
+  } else if (document.activeElement === el.chatInput) {
+    el.chatInput.blur();
+  }
+}
+
 function setChatHidden(hidden) {
-  chatHidden = hidden;
-  el.chatOverlay.classList.toggle('chat-hidden', hidden);
-  if (!hidden) enforcePersistentChat();
-  el.chatToggleBtn.textContent = hidden ? '👁' : '💬';
-  el.chatToggleBtn.title = hidden ? '채팅 보이기' : '채팅 숨기기';
-  el.chatToggleBtn.setAttribute('aria-label', hidden ? '채팅 보이기' : '채팅 숨기기');
-  showCinemaUi();
-syncFullscreenButton();
+  // Messages remain visible. Only the composer is opened or closed.
+  chatHidden = false;
+  enforcePersistentChat();
+  setComposerOpen(!hidden, !hidden);
+  syncFullscreenButton();
 }
 
 function randomRoom() {
@@ -429,7 +445,7 @@ window.addEventListener('orientationchange', () => {
 window.addEventListener('resize', () => {
   if (pseudoFullscreen || fullscreenElement()) setPlayerMode(true);
 });
-el.chatToggleBtn.addEventListener('click', () => setChatHidden(!chatHidden));
+el.chatToggleBtn.addEventListener('click', () => setComposerOpen(!composerOpen, !composerOpen));
 el.stage.addEventListener('pointermove', () => showCinemaUi());
 el.stage.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('button,input,form')) showCinemaUi();
@@ -449,6 +465,9 @@ el.chatInput.addEventListener('blur', () => {
   document.body.classList.remove('keyboard-open');
   document.documentElement.style.setProperty('--keyboard-inset', '0px');
   setTimeout(updateViewportSize, 80);
+  setTimeout(() => {
+    if (document.activeElement !== el.chatInput) setComposerOpen(false);
+  }, 120);
   showCinemaUi();
 });
 el.chatForm.addEventListener('submit', (event) => {
@@ -457,7 +476,8 @@ el.chatForm.addEventListener('submit', (event) => {
   if (!text) return;
   socket.emit('chat-message', { text });
   el.chatInput.value = '';
-  showCinemaUi(5200);
+  setComposerOpen(false);
+  showCinemaUi(3200);
 });
 
 async function requestDisplayStream() {

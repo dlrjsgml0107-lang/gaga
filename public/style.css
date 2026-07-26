@@ -356,3 +356,42 @@ body.keyboard-open > #chatOverlay.persistent-chat{
 .cinema-ui:not(.visible):not(:focus-within) .player-actions {
   pointer-events: none !important;
 }
+
+
+/* v15 — messages persist, composer appears only while actively chatting. */
+body > #chatOverlay.persistent-chat form {
+  display: none !important;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+body > #chatOverlay.persistent-chat.composer-open form,
+body.keyboard-open > #chatOverlay.persistent-chat form {
+  display: grid !important;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+body > #chatOverlay.persistent-chat:not(.composer-open) {
+  bottom: max(14px, env(safe-area-inset-bottom)) !important;
+}
+body > #chatOverlay.persistent-chat:not(.composer-open) .messages {
+  padding-bottom: 0;
+}
+#chatToggleBtn.active {
+  background: rgba(229,9,20,.92);
+  border-color: rgba(255,255,255,.45);
+}
+@media(max-width:760px) {
+  body > #chatOverlay.persistent-chat:not(.composer-open) {
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+}
+@media(max-height:560px) and (orientation:landscape) {
+  body > #chatOverlay.persistent-chat:not(.composer-open) {
+    bottom: max(7px, env(safe-area-inset-bottom)) !important;
+  }
+  body > #chatOverlay.persistent-chat:not(.composer-open) .messages {
+    max-height: 28vh;
+  }
+}
